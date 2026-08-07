@@ -41,6 +41,17 @@ Run AgentDock with the minimum operating-system and filesystem privileges requir
 - review browser automation and authenticated-session access carefully;
 - keep write-capable tools scoped to the smallest practical environment.
 
+## Validation
+
+Before deployment, run:
+
+```bash
+go test ./internal/config
+AGENTDOCK_AUTH_TOKEN=ci-placeholder-token sh scripts/verify-tool-runtime-only.sh
+```
+
+The `Compliance hardening` GitHub Actions workflow runs the same guard checks and rejects the quota-circumvention wording removed by this fork.
+
 ## Upstream synchronization
 
 This fork is expected to track upstream AgentDock while retaining its compliance hardening. Upstream changes should be merged through a review branch and checked for changes that weaken these restrictions or reintroduce quota-circumvention positioning.
