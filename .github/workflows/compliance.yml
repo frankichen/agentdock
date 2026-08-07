@@ -14,7 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify ACP is disabled in tool-runtime-only profile
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test config-level Tool-Runtime-Only guard
+        run: go test ./internal/config
+      - name: Verify hardened Compose profile
         env:
           AGENTDOCK_AUTH_TOKEN: ci-placeholder-token
         run: sh scripts/verify-tool-runtime-only.sh
+      - name: Reject quota-circumvention positioning
+        shell: bash
+        run: |
+          if grep -nE 'without consuming a dedicated Codex coding quota|without depending on a dedicated coding-agent quota|不消耗Codex额度|不依赖专用编程 Agent 额度' README.md README.zh-CN.md; then
+            echo 'quota-circumvention wording must not be reintroduced' >&2
+            exit 1
+          fi

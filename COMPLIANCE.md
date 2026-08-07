@@ -16,13 +16,18 @@ Do not configure this fork for account rotation, credential pooling, automated a
 
 ## Tool-Runtime-Only profile
 
-For deployments that only need MCP tool execution, use the provided `docker-compose.tool-runtime-only.yml` override. It explicitly disables ACP by setting:
+For deployments that only need MCP tool execution, enable the program-level hardening guard:
 
 ```text
+AGENTDOCK_TOOL_RUNTIME_ONLY=true
 AGENTDOCK_ACP_ENABLED=false
 ```
 
-This keeps AgentDock focused on its file, command, Git, MCP, browser, task, and deployment capabilities without launching a provider-backed ACP coding agent.
+When `AGENTDOCK_TOOL_RUNTIME_ONLY=true`, the runtime forces ACP off even if `AGENTDOCK_ACP_ENABLED=true` is supplied elsewhere. Residual ACP adapter configuration is ignored rather than parsed. The provided `docker-compose.tool-runtime-only.yml` and `scripts/start-tool-runtime-only.sh` set the guard for hardened deployments; the Compose profile also pins `AGENTDOCK_ACP_ENABLED=false` as defense in depth.
+
+The hardened Docker profile builds the current fork checkout instead of silently running the upstream `uvwt/agentdock` image. This ensures the program-level guard in this fork is actually present in the running container.
+
+This keeps AgentDock focused on its file, command, Git, MCP, browser, task, and deployment capabilities without launching a provider-backed ACP coding agent. It does not modify, bypass, or replace any provider-side quota or usage-limit enforcement.
 
 ## Least privilege
 
