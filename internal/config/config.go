@@ -44,6 +44,7 @@ type Config struct {
 	BrowserEnabled               bool
 	BrowserRunnerDir             string
 	BrowserNodePath              string
+	ToolRuntimeOnly              bool
 	ACPEnabled                   bool
 	ACPAgentName                 string
 	ACPCommand                   string
@@ -77,9 +78,16 @@ func FromEnv() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	toolRuntimeOnly, err := getenvBool("AGENTDOCK_TOOL_RUNTIME_ONLY", false)
+	if err != nil {
+		return Config{}, err
+	}
 	acpEnabled, err := getenvBool("AGENTDOCK_ACP_ENABLED", false)
 	if err != nil {
 		return Config{}, err
+	}
+	if toolRuntimeOnly {
+		acpEnabled = false
 	}
 	var acpArgs []string
 	var acpEnvFromEnv map[string]string
@@ -125,6 +133,7 @@ func FromEnv() (Config, error) {
 		BrowserEnabled:               browserEnabled,
 		BrowserRunnerDir:             os.Getenv("AGENTDOCK_BROWSER_RUNNER_DIR"),
 		BrowserNodePath:              os.Getenv("AGENTDOCK_BROWSER_NODE_PATH"),
+		ToolRuntimeOnly:              toolRuntimeOnly,
 		ACPEnabled:                   acpEnabled,
 		ACPAgentName:                 acpAgentName,
 		ACPCommand:                   acpCommand,
@@ -333,6 +342,9 @@ func splitCommaSeparated(value string) []string {
 }
 
 func (c *Config) normalizeACP() error {
+	if c.ToolRuntimeOnly {
+		c.ACPEnabled = false
+	}
 	if !c.ACPEnabled {
 		c.ACPAgentName = "claude"
 		c.ACPCommand = ""

@@ -8,7 +8,7 @@
 
 **让 AI 的双手，真正触达你的每一台设备。**
 
-打开网页版 ChatGPT，即可管理多台电脑与服务器：在真实设备上写代码、改配置、跑命令与部署，执行发生在你的机器上，不消耗Codex额度。
+打开网页版 ChatGPT，即可管理多台电脑与服务器：在真实设备上写代码、改配置、跑命令与部署，由 AgentDock 作为受控执行层完成环境操作；模型与服务用量仍受所连接服务商自身条款与限制约束。
 
 
 [快速开始](https://uvwt.github.io/agentdock-docs/zh-CN/docs/getting-started/install) · [在线文档](https://uvwt.github.io/agentdock-docs/zh-CN/) · [版本发布](https://github.com/uvwt/agentdock/releases) · [问题反馈](https://github.com/uvwt/agentdock/issues)
@@ -39,6 +39,8 @@ AgentDock 不提供聊天界面，也不负责模型推理。它专注于解决�
 
 > 让 AI Agent 在明确的权限边界内操作真实环境，并返回结构化、可追踪、可验证的执行结果。
 
+这个 fork 提供 Tool-Runtime-Only 加固模式，用于仅通过 MCP 执行工具而不启动服务商支持的 ACP 适配器。详情见 [COMPLIANCE.md](./COMPLIANCE.md)。
+
 ```text
               ChatGPT / Claude / Codex
                         │
@@ -57,7 +59,7 @@ AgentDock 不提供聊天界面，也不负责模型推理。它专注于解决�
 ## 你可以用 AgentDock 做什么
 
 - 用网页版 ChatGPT 直接管理多台电脑与服务器，无需分别 SSH 登录来回操作
-- 在真实设备上写代码、改项目、跑测试并操作 Git，执行发生在本机或服务器，不依赖专用编程 Agent 额度
+- 在真实设备上写代码、改项目、跑测试并操作 Git，同时继续遵守所连接模型/服务自身的用量限制
 - 让 AI 管理 VPS、Docker 服务、反向代理和部署配置
 - 让 AI 检查日志、进程、端口和真实运行状态
 - 让 AI 操作登录后的网页与 macOS 桌面应用

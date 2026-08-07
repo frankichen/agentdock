@@ -1,0 +1,11 @@
+services:
+  agentdock:
+    # Build this fork so the config-level hardening guard is present at runtime.
+    build:
+      context: .
+    image: "${AGENTDOCK_SAFE_IMAGE:-agentdock-safe:local}"
+    environment:
+      # Compliance hardening: keep AgentDock as an MCP tool runtime only.
+      # The program-level guard wins over ACP settings; explicit ACP=false is defense in depth.
+      AGENTDOCK_TOOL_RUNTIME_ONLY: "true"
+      AGENTDOCK_ACP_ENABLED: "false"

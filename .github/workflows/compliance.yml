@@ -1,0 +1,46 @@
+name: Compliance hardening
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tool-runtime-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test config-level Tool-Runtime-Only guard
+        run: go test ./internal/config
+      - name: Verify hardened Compose profile
+        env:
+          AGENTDOCK_AUTH_TOKEN: ci-placeholder-token
+        run: sh scripts/verify-tool-runtime-only.sh
+      - name: Verify ChatGPT OAuth Compose profile
+        shell: bash
+        env:
+          AGENTDOCK_AUTH_TOKEN: ci-placeholder-token
+          AGENTDOCK_SERVER_URL: https://agentdock.example.com
+          AGENTDOCK_OAUTH_PASSWORD: ci-oauth-password-1234
+          AGENTDOCK_OAUTH_TOKEN_SECRET: 0123456789abcdef0123456789abcdef
+        run: |
+          config="$(docker compose -f docker-compose.yml -f docker-compose.tool-runtime-only.yml -f docker-compose.chatgpt.yml config)"
+          grep -q 'AGENTDOCK_TOOL_RUNTIME_ONLY: "true"' <<<"$config"
+          grep -q 'AGENTDOCK_ACP_ENABLED: "false"' <<<"$config"
+          grep -q 'AGENTDOCK_OAUTH_ENABLED: "true"' <<<"$config"
+          grep -q 'AGENTDOCK_SERVER_URL: https://agentdock.example.com' <<<"$config"
+      - name: Reject quota-circumvention positioning
+        shell: bash
+        run: |
+          if grep -nE 'without consuming a dedicated Codex coding quota|without depending on a dedicated coding-agent quota|不消耗Codex额度|不依赖专用编程 Agent 额度' README.md README.zh-CN.md; then
+            echo 'quota-circumvention wording must not be reintroduced' >&2
+            exit 1
+          fi

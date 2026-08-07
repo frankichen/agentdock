@@ -8,7 +8,7 @@ English | [简体中文](./README.zh-CN.md)
 
 **Give AI agents secure, controlled access to every machine you operate.**
 
-Open ChatGPT in your browser and manage multiple computers and servers from one conversation. Write code, change configuration, run commands, and deploy in the real environment where the work belongs—without consuming a dedicated Codex coding quota.
+Open ChatGPT in your browser and manage multiple computers and servers from one conversation. Write code, change configuration, run commands, and deploy in the real environment where the work belongs, with AgentDock acting as the controlled execution layer. Model and service usage remains subject to the connected provider's own terms and limits.
 
 [Quick Start](https://uvwt.github.io/agentdock-docs/docs/getting-started/install) · [Documentation](https://uvwt.github.io/agentdock-docs/) · [Releases](https://github.com/uvwt/agentdock/releases) · [Issues](https://github.com/uvwt/agentdock/issues)
 
@@ -38,6 +38,8 @@ AgentDock does not provide a chat interface or perform model inference. It focus
 
 > Let AI agents operate real environments within explicit permission boundaries and return structured, traceable, and verifiable results.
 
+This fork includes a Tool-Runtime-Only hardening profile for MCP execution without provider-backed ACP adapters. See [COMPLIANCE.md](./COMPLIANCE.md).
+
 ```text
               ChatGPT / Claude / Codex
                         │
@@ -56,7 +58,7 @@ AgentDock does not provide a chat interface or perform model inference. It focus
 ## What can AgentDock do?
 
 - Manage multiple computers and servers directly from ChatGPT without repeatedly switching SSH sessions
-- Write code, modify projects, run tests, and operate Git in the real local or remote environment without depending on a dedicated coding-agent quota
+- Write code, modify projects, run tests, and operate Git in the real local or remote environment while keeping model/service usage subject to the connected provider's own limits
 - Manage VPS hosts, Docker services, reverse proxies, and deployment configuration
 - Inspect logs, processes, ports, and actual runtime state
 - Operate authenticated web pages and macOS desktop applications

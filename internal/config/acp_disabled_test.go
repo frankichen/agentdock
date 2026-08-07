@@ -23,6 +23,40 @@ func TestDisabledACPIgnoresResidualEnvironment(t *testing.T) {
 	assertDisabledACPDefaults(t, cfg)
 }
 
+func TestToolRuntimeOnlyForcesACPDisabledFromEnv(t *testing.T) {
+	t.Setenv("AGENTDOCK_TOOL_RUNTIME_ONLY", "true")
+	t.Setenv("AGENTDOCK_ACP_ENABLED", "true")
+	t.Setenv("AGENTDOCK_ACP_AGENT", "bad\nname")
+	t.Setenv("AGENTDOCK_ACP_ARGS_JSON", `not-json`)
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("tool-runtime-only parsed ACP configuration: %v", err)
+	}
+	if !cfg.ToolRuntimeOnly {
+		t.Fatal("ToolRuntimeOnly = false, want true")
+	}
+	setTestUserHome(t, t.TempDir())
+	if err := cfg.Normalize(); err != nil {
+		t.Fatalf("tool-runtime-only Normalize() error = %v", err)
+	}
+	assertDisabledACPDefaults(t, cfg)
+}
+
+func TestNormalizeToolRuntimeOnlyForcesProgrammaticACPDisabled(t *testing.T) {
+	setTestUserHome(t, t.TempDir())
+	cfg := Config{
+		ToolRuntimeOnly: true, ACPEnabled: true,
+		ACPAgentName: "bad\nname", ACPCommand: "relative", ACPArgs: []string{"stale"},
+		ACPEnvFromEnv: map[string]string{"BAD-NAME": "HOST"}, ACPAllowedRoots: []string{"relative"},
+		ACPMaxPrompts: 99, ACPInteractionMS: -1,
+	}
+	if err := cfg.Normalize(); err != nil {
+		t.Fatalf("tool-runtime-only programmatic ACP config failed: %v", err)
+	}
+	assertDisabledACPDefaults(t, cfg)
+}
+
 func TestNormalizeDisabledACPClearsProgrammaticResiduals(t *testing.T) {
 	setTestUserHome(t, t.TempDir())
 	cfg := Config{
