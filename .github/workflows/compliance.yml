@@ -1,0 +1,20 @@
+name: Compliance hardening
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tool-runtime-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify ACP is disabled in tool-runtime-only profile
+        env:
+          AGENTDOCK_AUTH_TOKEN: ci-placeholder-token
+        run: sh scripts/verify-tool-runtime-only.sh
