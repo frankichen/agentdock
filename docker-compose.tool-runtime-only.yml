@@ -1,0 +1,6 @@
+services:
+  agentdock:
+    environment:
+      # Compliance hardening: keep AgentDock as an MCP tool runtime only.
+      # This override wins over any host-level ACP setting when composed last.
+      AGENTDOCK_ACP_ENABLED: "false"
