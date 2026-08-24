@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Ultimate Android Agent</string>
+    <string name="accessibility_label">Ultimate 手机控制服务</string>
+    <string name="notification_channel">Ultimate Android Agent</string>
+    <string name="notification_title">Ultimate 手机控制 Agent 运行中</string>
+    <string name="notification_waiting">等待你手动启动 Tailscale；Agent 不会启动 Tailscale</string>
+    <string name="notification_bound">已绑定 Tailscale 私网接口</string>
+</resources>
