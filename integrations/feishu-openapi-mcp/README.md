@@ -36,10 +36,10 @@ This patch is generic and remains compatible with existing generated tools.
 ## Runtime installation
 
 ```bash
-./integrations/feishu-openapi-mcp/install-runtime.sh
+bash integrations/feishu-openapi-mcp/install-runtime.sh
 ```
 
-The installer copies the extension injector into the existing Feishu MCP runtime and idempotently adds the two tool names to `start-stdio.sh`.
+The installer derives the runtime from `$HOME/AgentDock` by default (or `FEISHU_MCP_RUNTIME_DIR` when set) and copies the extension injector into the existing Feishu MCP runtime and idempotently adds the two tool names to `start-stdio.sh`.
 
 No App Secret, access token, cookie, CSRF value, or user credential is stored in this repository.
 

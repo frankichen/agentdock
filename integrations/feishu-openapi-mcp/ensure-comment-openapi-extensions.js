@@ -2,8 +2,12 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
-const target = process.env.LARK_MCP_DRIVE_V1_JS || "/home/xiaowu/AgentDock/mcp/lark-openapi-mcp/node_modules/@larksuiteoapi/lark-mcp/dist/mcp-tool/tools/zh/gen-tools/zod/drive_v1.js";
+const agentDockHome = process.env.AGENTDOCK_HOME || path.join(os.homedir(), "AgentDock");
+const larkMcpRoot = process.env.LARK_MCP_ROOT || path.join(agentDockHome, "mcp/lark-openapi-mcp/node_modules/@larksuiteoapi/lark-mcp");
+const target = process.env.LARK_MCP_DRIVE_V1_JS || path.join(larkMcpRoot, "dist/mcp-tool/tools/zh/gen-tools/zod/drive_v1.js");
 let src = fs.readFileSync(target, "utf8");
 
 function insertBeforeOnce(anchor, block, marker) {
@@ -134,7 +138,7 @@ for (const needle of [
   }
 }
 
-const handlerTarget = process.env.LARK_MCP_HANDLER_JS || "/home/xiaowu/AgentDock/mcp/lark-openapi-mcp/node_modules/@larksuiteoapi/lark-mcp/dist/mcp-tool/utils/handler.js";
+const handlerTarget = process.env.LARK_MCP_HANDLER_JS || path.join(larkMcpRoot, "dist/mcp-tool/utils/handler.js");
 let handlerSrc = fs.readFileSync(handlerTarget, "utf8");
 
 const oldFallback = `        if (!func) {
