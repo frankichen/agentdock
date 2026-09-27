@@ -36,14 +36,16 @@ func probeManagedTempPath(path string, processGroup int) managedTempState {
 		procRoot := filepath.Join("/proc", entry.Name())
 		info, err := os.Stat(procRoot)
 		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
+			if processGroup == 0 && !errors.Is(err, os.ErrNotExist) {
 				unknown = true
 			}
 			continue
 		}
 		stat, ok := info.Sys().(*syscall.Stat_t)
 		if !ok {
-			unknown = true
+			if processGroup == 0 {
+				unknown = true
+			}
 			continue
 		}
 		if stat.Uid != euid {
