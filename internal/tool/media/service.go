@@ -5,7 +5,7 @@ import (
 	"github.com/uvwt/agentdock/internal/workspace"
 )
 
-type CommandEnv func(extra map[string]string) ([]string, func(), error)
+type CommandEnv func(extra map[string]string) ([]string, func(int) error, func(), error)
 
 type Service struct {
 	cfg        config.Config

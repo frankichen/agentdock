@@ -57,24 +57,26 @@ func (s *Service) InternalCommandEnv(extra map[string]string) ([]string, error) 
 	return s.internalCommandEnv(extra)
 }
 
-func (s *Service) ManagedInternalCommandEnv(extra map[string]string) ([]string, func(), error) {
+func (s *Service) ManagedInternalCommandEnv(extra map[string]string) ([]string, func(int) error, func(), error) {
 	env, err := s.baseCommandEnv()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for key, value := range extra {
 		env[key] = value
 	}
 	lease, err := s.temp.acquire("browser")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	bind := func(int) error { return nil }
 	release := func() {}
 	if lease != nil {
 		setManagedTempEnvironment(env, lease.Path())
-		release = lease.Release
+		bind = lease.BindProcessGroup
+		release = func() { lease.ReleaseEventually(managedTempTerminalReleaseWait) }
 	}
-	return formatCommandEnv(env), release, nil
+	return formatCommandEnv(env), bind, release, nil
 }
 
 const (
