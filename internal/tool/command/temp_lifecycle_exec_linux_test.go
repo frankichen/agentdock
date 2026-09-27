@@ -17,6 +17,11 @@ import (
 
 func newManagedTempExecService(t *testing.T) (*Service, string) {
 	t.Helper()
+	return newManagedTempExecServiceWithContext(t, context.Background())
+}
+
+func newManagedTempExecServiceWithContext(t *testing.T, commandCtx context.Context) (*Service, string) {
+	t.Helper()
 	home := t.TempDir()
 	workdir := t.TempDir()
 	ws, err := workspace.New(workdir)
@@ -34,7 +39,7 @@ func newManagedTempExecService(t *testing.T) (*Service, string) {
 		envs,
 		session.NewStore(),
 		func(string) (string, error) { return "", nil },
-		func() (context.Context, error) { return context.Background(), nil },
+		func() (context.Context, error) { return commandCtx, nil },
 		nil,
 	)
 	return svc, filepath.Join(home, "tmp", managedTempDirectoryName)
@@ -98,6 +103,30 @@ func TestExecManagedTempLifecycleSuccessFailureTimeoutAndKill(t *testing.T) {
 		}
 		if result["status"] != "timeout" {
 			t.Fatalf("status = %v, want timeout", result["status"])
+		}
+		waitManagedTempEmpty(t, root)
+	})
+
+	t.Run("cancel", func(t *testing.T) {
+		commandCtx, cancel := context.WithCancel(context.Background())
+		svc, root := newManagedTempExecServiceWithContext(t, commandCtx)
+		result, err := svc.Exec(context.Background(), map[string]any{
+			"cmd":            "sleep 30",
+			"execution_mode": "async",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sessionID, _ := result["session_id"].(string)
+		sess, ok := svc.sessions.Get(sessionID)
+		if !ok {
+			t.Fatalf("session %q was not retained", sessionID)
+		}
+		cancel()
+		select {
+		case <-sess.Done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("canceled command did not stop")
 		}
 		waitManagedTempEmpty(t, root)
 	})
