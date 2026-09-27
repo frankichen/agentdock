@@ -84,7 +84,7 @@ func NewRuntime(cfg config.Config) (*Runtime, error) {
 	runtime.files = toolfile.New(ws, skills.ResolveResource, runtime.command.CommandEnv)
 	runtime.git = toolgit.New(ws, runtime.command.CommandEnv)
 	runtime.dynamicMCP = toolmcp.New(mcpClients, envs)
-	runtime.media = toolmedia.New(cfg, ws, runtime.command.InternalCommandEnv)
+	runtime.media = toolmedia.New(cfg, ws, runtime.command.ManagedInternalCommandEnv)
 	runtime.recall = toolrecall.New(func() config.Config { return runtime.cfg })
 	runtime.taskTools = tooltask.New(func() config.Config { return runtime.cfg }, tasks)
 	if cfg.ACPEnabled {

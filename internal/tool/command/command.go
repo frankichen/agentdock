@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/uvwt/agentdock/internal/tool/command/session"
@@ -76,6 +75,22 @@ func (svc *Service) Exec(ctx context.Context, args map[string]any) (Result, erro
 		}
 	}()
 
+	var managedTemp *managedTempLease
+	if svc.temp != nil && invocation.build == nil {
+		managedTemp, err = svc.temp.acquire("command")
+		if err != nil {
+			return nil, fmt.Errorf("create managed command temp directory: %w", err)
+		}
+		if managedTemp != nil {
+			invocation.env = withManagedTempEnvironment(invocation.env, managedTemp.Path())
+		}
+	}
+	releaseManagedTemp := func() {
+		if managedTemp != nil {
+			managedTemp.Release()
+		}
+	}
+
 	// 这里故意不用请求 ctx 派生子进程生命周期。
 	// 背景：exec_command 可能先返回 running，让模型后续通过 session_observe action=status 继续取结果；
 	// 如果子进程绑定到单次 MCP 请求 ctx，请求结束时 git push / npm install 等长任务会被杀掉。
@@ -89,7 +104,14 @@ func (svc *Service) Exec(ctx context.Context, args map[string]any) (Result, erro
 		return func() {}, map[string]any{"enabled": false, "mode": "none", "policy": "no_command_content_filtering", "warnings": []string{privilegeWarning, "use Docker volumes, service users, file permissions, and network policy as the security boundary"}}
 	})
 	if err != nil {
+		releaseManagedTemp()
 		return nil, err
+	}
+	if managedTemp != nil {
+		go func() {
+			<-s.Done
+			releaseManagedTemp()
+		}()
 	}
 	s.SetExecutionContext(invocation.execution)
 	if stdin := stringArg(args, "stdin", ""); stdin != "" {
@@ -420,9 +442,13 @@ func (svc *Service) baseCommandEnv() (map[string]string, error) {
 	if hostHome, err := os.UserHomeDir(); err == nil && hostHome != "" {
 		env["HOME"] = hostHome
 	}
-	env["TMPDIR"] = filepath.Join(svc.config().AgentDockHome, "tmp")
-	if err := os.MkdirAll(env["TMPDIR"], 0o755); err != nil {
-		return nil, fmt.Errorf("create command temp directory: %w", err)
+	if svc.temp != nil {
+		if _, err := svc.temp.ensureRoot(); err != nil {
+			return nil, fmt.Errorf("create command temp directory: %w", err)
+		}
+	}
+	if tempDir := os.TempDir(); tempDir != "" {
+		env["TMPDIR"] = tempDir
 	}
 	return env, nil
 }

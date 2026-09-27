@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	managedTempDirectoryName = "managed"
-	managedTempPrefix        = "run-"
-	managedTempMetadataName  = ".agentdock-managed-temp.json"
-	managedTempSchemaVersion = 1
-	managedTempStaleAfter    = 24 * time.Hour
+	managedTempDirectoryName  = "managed"
+	managedTempPrefix         = "run-"
+	managedTempMetadataName   = ".agentdock-managed-temp.json"
+	managedTempSchemaVersion  = 1
+	managedTempStaleAfter     = 24 * time.Hour
 	managedTempReconcileEvery = 15 * time.Minute
 )
 

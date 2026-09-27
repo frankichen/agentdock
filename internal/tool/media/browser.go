@@ -57,9 +57,12 @@ func (s *Service) BrowserCall(ctx context.Context, operation string, args map[st
 			env[key] = value
 		}
 	}
-	commandEnv, err := s.commandEnv(env)
+	commandEnv, releaseManagedTemp, err := s.commandEnv(env)
 	if err != nil {
 		return nil, err
+	}
+	if releaseManagedTemp != nil {
+		defer releaseManagedTemp()
 	}
 	cmd.Env = commandEnv
 	stdout := toolcore.NewBoundedOutput(browserRunnerOutputLimit)
