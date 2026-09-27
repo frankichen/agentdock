@@ -108,6 +108,20 @@ func (svc *Service) Exec(ctx context.Context, args map[string]any) (Result, erro
 		return nil, err
 	}
 	if managedTemp != nil {
+		if s.Command == nil || s.Command.Process == nil {
+			s.Kill()
+			if waitForSessionCompletion(s, sessionKillWait) {
+				managedTemp.Release()
+			}
+			return nil, fmt.Errorf("bind managed command temp: command process is unavailable")
+		}
+		if err := managedTemp.BindProcessGroup(s.Command.Process.Pid); err != nil {
+			s.Kill()
+			if waitForSessionCompletion(s, sessionKillWait) {
+				managedTemp.Release()
+			}
+			return nil, fmt.Errorf("bind managed command temp: %w", err)
+		}
 		go func() {
 			<-s.Done
 			managedTemp.ReleaseEventually(managedTempTerminalReleaseWait)
