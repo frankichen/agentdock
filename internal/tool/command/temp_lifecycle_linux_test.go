@@ -181,8 +181,10 @@ func TestManagedTempStartupReconcilesStaleInactive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_ = newManagedTempManager(func() config.Config {
+	_ = newManagedTempManagerWithProbe(func() config.Config {
 		return config.Config{AgentDockHome: home}
+	}, func(string) managedTempState {
+		return managedTempInactive
 	})
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("startup reconciliation left stale inactive resource: %v", err)

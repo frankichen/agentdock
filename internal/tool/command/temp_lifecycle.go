@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	managedTempDirectoryName  = "managed"
-	managedTempPrefix         = "run-"
-	managedTempMetadataName   = ".agentdock-managed-temp.json"
-	managedTempSchemaVersion  = 1
+	managedTempDirectoryName       = "managed"
+	managedTempPrefix              = "run-"
+	managedTempMetadataName        = ".agentdock-managed-temp.json"
+	managedTempSchemaVersion       = 1
 	managedTempStaleAfter          = 24 * time.Hour
 	managedTempReconcileEvery      = 15 * time.Minute
 	managedTempTerminalReleaseWait = 3 * time.Second
@@ -64,10 +64,14 @@ type managedTempReconcileReport struct {
 }
 
 func newManagedTempManager(configProvider ConfigProvider) *managedTempManager {
+	return newManagedTempManagerWithProbe(configProvider, probeManagedTempPath)
+}
+
+func newManagedTempManagerWithProbe(configProvider ConfigProvider, probe func(string) managedTempState) *managedTempManager {
 	manager := &managedTempManager{
 		config:            configProvider,
 		now:               time.Now,
-		probe:             probeManagedTempPath,
+		probe:             probe,
 		staleAfter:        managedTempStaleAfter,
 		reconcileInterval: managedTempReconcileEvery,
 	}
