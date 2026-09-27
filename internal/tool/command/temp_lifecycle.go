@@ -17,8 +17,10 @@ const (
 	managedTempPrefix         = "run-"
 	managedTempMetadataName   = ".agentdock-managed-temp.json"
 	managedTempSchemaVersion  = 1
-	managedTempStaleAfter     = 24 * time.Hour
-	managedTempReconcileEvery = 15 * time.Minute
+	managedTempStaleAfter          = 24 * time.Hour
+	managedTempReconcileEvery      = 15 * time.Minute
+	managedTempTerminalReleaseWait = 3 * time.Second
+	managedTempReleaseRetryEvery   = 25 * time.Millisecond
 )
 
 type managedTempState string
@@ -47,10 +49,11 @@ type managedTempManager struct {
 }
 
 type managedTempLease struct {
-	manager *managedTempManager
-	path    string
-	id      string
-	once    sync.Once
+	manager  *managedTempManager
+	path     string
+	id       string
+	mu       sync.Mutex
+	released bool
 }
 
 type managedTempReconcileReport struct {
@@ -122,12 +125,48 @@ func (l *managedTempLease) Path() string {
 }
 
 func (l *managedTempLease) Release() {
+	_, _ = l.releaseOnce()
+}
+
+func (l *managedTempLease) ReleaseEventually(maxWait time.Duration) {
 	if l == nil || l.manager == nil {
 		return
 	}
-	l.once.Do(func() {
-		_, _ = l.manager.release(l.path, l.id)
-	})
+	deadline := time.Now().Add(maxWait)
+	for {
+		state, err := l.releaseOnce()
+		if err != nil || state == managedTempInactive || state == managedTempUnknown {
+			return
+		}
+		if state != managedTempActive || maxWait <= 0 {
+			return
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return
+		}
+		delay := managedTempReleaseRetryEvery
+		if remaining < delay {
+			delay = remaining
+		}
+		time.Sleep(delay)
+	}
+}
+
+func (l *managedTempLease) releaseOnce() (managedTempState, error) {
+	if l == nil || l.manager == nil {
+		return managedTempUnknown, nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.released {
+		return managedTempInactive, nil
+	}
+	state, err := l.manager.release(l.path, l.id)
+	if err == nil && state == managedTempInactive {
+		l.released = true
+	}
+	return state, err
 }
 
 func (m *managedTempManager) release(path, id string) (managedTempState, error) {

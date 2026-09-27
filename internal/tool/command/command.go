@@ -110,7 +110,7 @@ func (svc *Service) Exec(ctx context.Context, args map[string]any) (Result, erro
 	if managedTemp != nil {
 		go func() {
 			<-s.Done
-			releaseManagedTemp()
+			managedTemp.ReleaseEventually(managedTempTerminalReleaseWait)
 		}()
 	}
 	s.SetExecutionContext(invocation.execution)

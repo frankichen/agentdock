@@ -77,13 +77,7 @@ func TestManagedTempReleaseProtectsActiveProcessGroup(t *testing.T) {
 		_ = controller.Close()
 	})
 
-	state, err := manager.release(lease.Path(), lease.id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if state != managedTempActive {
-		t.Fatalf("release state = %q, want %q", state, managedTempActive)
-	}
+	lease.Release()
 	if _, err := os.Stat(lease.Path()); err != nil {
 		t.Fatalf("active managed temp resource was removed: %v", err)
 	}
@@ -93,17 +87,7 @@ func TestManagedTempReleaseProtectsActiveProcessGroup(t *testing.T) {
 	}
 	_ = cmd.Wait()
 	_ = controller.Close()
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		state, err = manager.release(lease.Path(), lease.id)
-		if err == nil && state == managedTempInactive {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("managed temp resource did not become releasable: state=%q err=%v", state, err)
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	lease.ReleaseEventually(2 * time.Second)
 	if _, err := os.Stat(lease.Path()); !os.IsNotExist(err) {
 		t.Fatalf("inactive managed temp resource still exists: %v", err)
 	}
