@@ -3,6 +3,7 @@
 package command
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/uvwt/agentdock/internal/config"
+	processcontrol "github.com/uvwt/agentdock/internal/process"
 )
 
 func testManagedTempManager(t *testing.T) *managedTempManager {
@@ -51,7 +53,7 @@ func TestManagedTempAcquireReleaseUsesDedicatedNamespaceAndPreservesLegacy(t *te
 	}
 }
 
-func TestManagedTempReleaseProtectsActiveReparentableProcess(t *testing.T) {
+func TestManagedTempReleaseProtectsActiveProcessGroup(t *testing.T) {
 	manager := testManagedTempManager(t)
 	lease, err := manager.acquire("active")
 	if err != nil {
@@ -59,12 +61,20 @@ func TestManagedTempReleaseProtectsActiveReparentableProcess(t *testing.T) {
 	}
 	cmd := exec.Command("sh", "-c", "sleep 30")
 	cmd.Env = append(os.Environ(), "TMPDIR="+lease.Path())
+	processcontrol.Configure(cmd)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
+	controller, err := processcontrol.Attach(cmd)
+	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = controller.Terminate()
+		_ = cmd.Wait()
+		_ = controller.Close()
 	})
 
 	state, err := manager.release(lease.Path(), lease.id)
@@ -78,10 +88,11 @@ func TestManagedTempReleaseProtectsActiveReparentableProcess(t *testing.T) {
 		t.Fatalf("active managed temp resource was removed: %v", err)
 	}
 
-	if err := cmd.Process.Kill(); err != nil {
+	if err := controller.Terminate(); err != nil {
 		t.Fatal(err)
 	}
 	_ = cmd.Wait()
+	_ = controller.Close()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		state, err = manager.release(lease.Path(), lease.id)
@@ -158,6 +169,65 @@ func TestManagedTempReconcileFailsClosedOnSymlinkChild(t *testing.T) {
 	}
 	if data, err := os.ReadFile(sentinel); err != nil || string(data) != "safe" {
 		t.Fatalf("symlink target changed: data=%q err=%v", string(data), err)
+	}
+}
+
+func TestManagedTempStartupReconcilesStaleInactive(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(home, "tmp", managedTempDirectoryName)
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	id := "startup-stale"
+	path := filepath.Join(root, managedTempPrefix+id)
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	metadata := managedTempMetadata{
+		SchemaVersion: managedTempSchemaVersion,
+		ID:            id,
+		Kind:          "startup",
+		CreatedAt:     time.Now().UTC().Add(-managedTempStaleAfter - time.Hour),
+	}
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, managedTempMetadataName), append(raw, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = newManagedTempManager(func() config.Config {
+		return config.Config{AgentDockHome: home}
+	})
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("startup reconciliation left stale inactive resource: %v", err)
+	}
+}
+
+func TestManagedTempValidationRejectsTraversalOutsideNamespace(t *testing.T) {
+	manager := testManagedTempManager(t)
+	root, err := manager.ensureRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(filepath.Dir(root), "outside")
+	if err := os.Mkdir(outside, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(outside, "sentinel")
+	if err := os.WriteFile(sentinel, []byte("safe"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	traversal := filepath.Join(root, "..", "outside")
+	if _, err := validateManagedTempChild(root, traversal, ""); err == nil {
+		t.Fatal("expected traversal outside managed namespace to be rejected")
+	}
+	if err := removeManagedTempChild(root, traversal, ""); err == nil {
+		t.Fatal("expected traversal removal to fail closed")
+	}
+	if data, err := os.ReadFile(sentinel); err != nil || string(data) != "safe" {
+		t.Fatalf("outside traversal target changed: data=%q err=%v", string(data), err)
 	}
 }
 
