@@ -22,13 +22,16 @@ type Service struct {
 	resolveSkill   SkillResolver
 	commandContext CommandContext
 	diagnose       Diagnostic
+	temp           *managedTempManager
 }
 
 func New(configProvider ConfigProvider, ws *workspace.Workspace, envs *envstore.Store, sessions *session.Store, resolveSkill SkillResolver, commandContext CommandContext, diagnose Diagnostic) *Service {
-	return &Service{
+	service := &Service{
 		config: configProvider, ws: ws, envs: envs, sessions: sessions,
 		resolveSkill: resolveSkill, commandContext: commandContext, diagnose: diagnose,
 	}
+	service.temp = newManagedTempManager(configProvider)
+	return service
 }
 
 func (s *Service) Store() *session.Store { return s.sessions }
@@ -52,6 +55,28 @@ func (s *Service) CommandEnv(skillName string, extra map[string]any) ([]string, 
 
 func (s *Service) InternalCommandEnv(extra map[string]string) ([]string, error) {
 	return s.internalCommandEnv(extra)
+}
+
+func (s *Service) ManagedInternalCommandEnv(extra map[string]string) ([]string, func(int) error, func(), error) {
+	env, err := s.baseCommandEnv()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	for key, value := range extra {
+		env[key] = value
+	}
+	lease, err := s.temp.acquire("browser")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	bind := func(int) error { return nil }
+	release := func() {}
+	if lease != nil {
+		setManagedTempEnvironment(env, lease.Path())
+		bind = lease.BindProcessGroup
+		release = func() { lease.ReleaseEventually(managedTempTerminalReleaseWait) }
+	}
+	return formatCommandEnv(env), bind, release, nil
 }
 
 const (

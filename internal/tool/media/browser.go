@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/uvwt/agentdock/internal/config"
+	processcontrol "github.com/uvwt/agentdock/internal/process"
 	toolcore "github.com/uvwt/agentdock/internal/tool/core"
 )
 
@@ -44,7 +45,7 @@ func (s *Service) BrowserCall(ctx context.Context, operation string, args map[st
 	if nodePath == "" {
 		nodePath = "node"
 	}
-	cmd := exec.CommandContext(cmdCtx, nodePath, runner.Abs)
+	cmd := exec.Command(nodePath, runner.Abs)
 	cmd.Dir = filepath.Dir(runner.Abs)
 	env := map[string]string{
 		"BROWSER_RUNNER_PAYLOAD": string(data),
@@ -57,19 +58,19 @@ func (s *Service) BrowserCall(ctx context.Context, operation string, args map[st
 			env[key] = value
 		}
 	}
-	commandEnv, err := s.commandEnv(env)
+	commandEnv, bindManagedTemp, releaseManagedTemp, err := s.commandEnv(env)
 	if err != nil {
 		return nil, err
+	}
+	if releaseManagedTemp != nil {
+		defer releaseManagedTemp()
 	}
 	cmd.Env = commandEnv
 	stdout := toolcore.NewBoundedOutput(browserRunnerOutputLimit)
 	stderr := toolcore.NewBoundedOutput(browserRunnerOutputLimit)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	err = cmd.Run()
-	if contextErr := cmdCtx.Err(); contextErr != nil {
-		err = contextErr
-	}
+	err = runBrowserCommand(cmdCtx, cmd, bindManagedTemp)
 	output, outputTotal, outputTruncated := stdout.Snapshot()
 	stderrOutput, stderrTotal, stderrTruncated := stderr.Snapshot()
 	maxBytes := boundedInt(intArg(args, "max_bytes", 262144), 262144, 1, 1<<20)
@@ -149,6 +150,41 @@ func (s *Service) BrowserCall(ctx context.Context, operation string, args map[st
 		}
 	}
 	return result, nil
+}
+
+func runBrowserCommand(ctx context.Context, cmd *exec.Cmd, bindManagedTemp func(int) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	processcontrol.Configure(cmd)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	controller, err := processcontrol.Attach(cmd)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return err
+	}
+	defer controller.Close()
+	if bindManagedTemp != nil {
+		if err := bindManagedTemp(cmd.Process.Pid); err != nil {
+			_ = controller.Terminate()
+			_ = cmd.Wait()
+			return err
+		}
+	}
+	wait := make(chan error, 1)
+	go func() { wait <- cmd.Wait() }()
+	select {
+	case err := <-wait:
+		_ = controller.Terminate()
+		return err
+	case <-ctx.Done():
+		_ = controller.Terminate()
+		<-wait
+		return ctx.Err()
+	}
 }
 
 func browserRunnerTimeout(args map[string]any) time.Duration {
