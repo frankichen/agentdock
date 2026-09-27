@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -94,6 +95,12 @@ func (c *Controller) Terminate() error {
 		return fmt.Errorf("terminate Windows Job Object: %w", err)
 	}
 	return nil
+}
+
+// Windows Job Objects do not provide the Unix process-group SIGTERM contract.
+// Keep existing termination semantics while exposing the command-runner API.
+func (c *Controller) TerminateGracefully(_ time.Duration) error {
+	return c.Terminate()
 }
 
 func (c *Controller) Close() error {

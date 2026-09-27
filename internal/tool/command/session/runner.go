@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"time"
 
 	processcontrol "github.com/uvwt/agentdock/internal/process"
 )
+
+const commandTerminationGrace = 750 * time.Millisecond
 
 type commandRunner interface {
 	Stdin() io.WriteCloser
@@ -58,7 +61,7 @@ func (r *standardRunner) Wait() (int, error) {
 
 func (r *standardRunner) Kill() error {
 	if r.controller != nil {
-		return r.controller.Terminate()
+		return r.controller.TerminateGracefully(commandTerminationGrace)
 	}
 	if r.cmd != nil && r.cmd.Process != nil {
 		return r.cmd.Process.Kill()
