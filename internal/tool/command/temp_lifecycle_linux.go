@@ -14,14 +14,20 @@ import (
 
 func managedTempLifecycleSupported() bool { return true }
 
-func probeManagedTempPath(path string) managedTempState {
+func probeManagedTempPath(path string, processGroup int) managedTempState {
 	path = filepath.Clean(path)
+	if processGroup > 0 {
+		switch state := managedTempProcessGroupState(processGroup); state {
+		case managedTempActive, managedTempUnknown:
+			return state
+		}
+	}
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return managedTempUnknown
 	}
 	euid := uint32(os.Geteuid())
-	unknown := false
+	unknown := processGroup == 0
 	for _, entry := range entries {
 		pid, err := strconv.Atoi(entry.Name())
 		if err != nil || pid <= 0 {
@@ -47,7 +53,7 @@ func probeManagedTempPath(path string) managedTempState {
 		if active {
 			return managedTempActive
 		}
-		if uncertain {
+		if uncertain && processGroup == 0 {
 			unknown = true
 		}
 	}
@@ -55,6 +61,21 @@ func probeManagedTempPath(path string) managedTempState {
 		return managedTempUnknown
 	}
 	return managedTempInactive
+}
+
+func managedTempProcessGroupState(processGroup int) managedTempState {
+	if processGroup <= 0 {
+		return managedTempUnknown
+	}
+	err := syscall.Kill(-processGroup, 0)
+	switch err {
+	case nil, syscall.EPERM:
+		return managedTempActive
+	case syscall.ESRCH:
+		return managedTempInactive
+	default:
+		return managedTempUnknown
+	}
 }
 
 func sameUserProcessReferencesPath(procRoot, path string) (bool, bool) {

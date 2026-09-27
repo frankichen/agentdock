@@ -4,4 +4,4 @@ package command
 
 func managedTempLifecycleSupported() bool { return false }
 
-func probeManagedTempPath(string) managedTempState { return managedTempUnknown }
+func probeManagedTempPath(string, int) managedTempState { return managedTempUnknown }

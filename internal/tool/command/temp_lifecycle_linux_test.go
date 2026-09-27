@@ -71,6 +71,11 @@ func TestManagedTempReleaseProtectsActiveProcessGroup(t *testing.T) {
 		_ = cmd.Wait()
 		t.Fatal(err)
 	}
+	if err := lease.BindProcessGroup(cmd.Process.Pid); err != nil {
+		_ = controller.Terminate()
+		_ = cmd.Wait()
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		_ = controller.Terminate()
 		_ = cmd.Wait()
@@ -107,7 +112,7 @@ func TestManagedTempReconcileKeepsUnknownAndRemovesStaleInactive(t *testing.T) {
 	}
 	manager.now = func() time.Time { return base.Add(25 * time.Hour) }
 	manager.staleAfter = 24 * time.Hour
-	manager.probe = func(path string) managedTempState {
+	manager.probe = func(path string, _ int) managedTempState {
 		if path == unknownLease.Path() {
 			return managedTempUnknown
 		}
@@ -183,7 +188,7 @@ func TestManagedTempStartupReconcilesStaleInactive(t *testing.T) {
 
 	_ = newManagedTempManagerWithProbe(func() config.Config {
 		return config.Config{AgentDockHome: home}
-	}, func(string) managedTempState {
+	}, func(string, int) managedTempState {
 		return managedTempInactive
 	})
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
